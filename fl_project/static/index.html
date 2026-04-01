@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>EA-FL Dashboard | Energy-Aware Federated Learning</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04080f;--surface:#080f1c;--panel:#0c1525;--border:#112240;
+  --accent:#00e5ff;--accent2:#7b2ff7;--green:#00e676;--amber:#ffab00;
+  --red:#ff5252;--text:#cdd9f0;--muted:#4a6080;--card:#0a1628;
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse 80% 50% at 20% 0%,rgba(0,229,255,.04) 0%,transparent 60%),
+             radial-gradient(ellipse 60% 40% at 80% 100%,rgba(123,47,247,.04) 0%,transparent 60%);
+  pointer-events:none;z-index:0}
+
+/* ── NAV ────────────────────────────────────────────────────────────── */
+nav{position:sticky;top:0;z-index:100;background:rgba(4,8,15,.85);backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--border);padding:0 36px;display:flex;align-items:center;height:58px;gap:24px}
+.nav-logo{display:flex;align-items:center;gap:10px;margin-right:auto}
+.nav-logo .icon{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.nav-logo h1{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.nav-logo span{color:var(--accent)}
+.nav-tab{font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;
+  padding:6px 14px;border-radius:6px;transition:.2s;text-transform:uppercase;letter-spacing:.8px}
+.nav-tab:hover{color:var(--text);background:var(--panel)}
+.nav-tab.active{color:var(--accent);background:rgba(0,229,255,.08)}
+.status-chip{display:flex;align-items:center;gap:7px;background:var(--panel);
+  border:1px solid var(--border);padding:5px 12px;border-radius:20px;
+  font-family:'Space Mono',monospace;font-size:11px;margin-left:16px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:.3s}
+.dot.on{background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1.5s infinite}
+.dot.err{background:var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── LAYOUT ─────────────────────────────────────────────────────────── */
+main{position:relative;z-index:1;padding:28px 36px;max-width:1480px;margin:0 auto}
+.page{display:none}.page.active{display:block}
+.section-title{font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+
+/* ── CARDS ──────────────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px;
+  transition:border-color .2s}
+.card:hover{border-color:rgba(0,229,255,.18)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.mb{margin-bottom:20px}
+
+/* ── KPI CARDS ──────────────────────────────────────────────────────── */
+.kpi{text-align:center;padding:20px 16px}
+.kpi-val{font-family:'Space Mono',monospace;font-size:26px;font-weight:700;
+  margin-bottom:4px;line-height:1}
+.kpi-val.c1{color:var(--green)}
+.kpi-val.c2{color:var(--accent)}
+.kpi-val.c3{color:var(--amber)}
+.kpi-val.c4{color:#b47fff}
+.kpi-val.c5{color:#ff80ab}
+.kpi-val.c6{color:#80cbc4}
+.kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* ── BUTTONS ────────────────────────────────────────────────────────── */
+.btn-row{display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.btn{padding:11px 24px;border:none;border-radius:8px;font-family:'Space Grotesk',sans-serif;
+  font-size:13px;font-weight:600;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:7px}
+.btn-p{background:linear-gradient(135deg,var(--accent),#008fa8);color:#000}
+.btn-p:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,229,255,.25)}
+.btn-s{background:linear-gradient(135deg,var(--accent2),#4a1a99);color:#fff}
+.btn-s:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(123,47,247,.25)}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+
+/* ── CONFIG ─────────────────────────────────────────────────────────── */
+.param-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.param label{display:block;font-family:'Space Mono',monospace;font-size:10px;
+  color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.param input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;
+  padding:8px 11px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;transition:.2s}
+.param input:focus{border-color:var(--accent)}
+
+/* ── PROGRESS ───────────────────────────────────────────────────────── */
+.progress-card{padding:18px 22px;display:none}
+.progress-card.show{display:block}
+.prog-row{display:flex;justify-content:space-between;margin-bottom:9px;
+  font-family:'Space Mono',monospace;font-size:11px}
+.prog-msg{color:var(--accent)}.prog-pct{color:var(--muted)}
+.bar-bg{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  border-radius:3px;width:0%;transition:width .4s ease}
+
+/* ── CANVAS CHARTS ──────────────────────────────────────────────────── */
+.chart-wrap{position:relative}
+canvas{display:block;width:100%!important}
+
+/* ── DEVICE CARDS ───────────────────────────────────────────────────── */
+.device-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.device-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.device-card.selected{border-color:var(--accent);box-shadow:0 0 14px rgba(0,229,255,.12)}
+.device-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.device-name{font-size:13px;font-weight:600}
+.device-id{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase}
+.b-sm{background:rgba(0,229,255,.12);color:var(--accent)}
+.b-sw{background:rgba(123,47,247,.12);color:#b47fff}
+.b-tb{background:rgba(0,230,118,.12);color:var(--green)}
+.b-io{background:rgba(255,171,0,.12);color:var(--amber)}
+.b-lp{background:rgba(255,82,82,.12);color:var(--red)}
+.b-ed{background:rgba(128,203,196,.12);color:#80cbc4}
+.meter-row{margin-bottom:8px}
+.meter-label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px}
+.meter-label span:last-child{color:var(--text);font-family:'Space Mono',monospace}
+.meter-bg{height:4px;background:var(--border);border-radius:2px}
+.meter-fill{height:100%;border-radius:2px;transition:width .5s}
+.score-row{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center}
+.score-val{font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:var(--green)}
+.score-lbl{font-size:10px;color:var(--muted)}
+
+/* ── TABLE ──────────────────────────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;
+  letter-spacing:.8px;color:var(--muted);text-align:left;padding:10px 14px;
+  border-bottom:1px solid var(--border)}
+tbody td{font-family:'Space Mono',monospace;font-size:11px;padding:11px 14px;
+  border-bottom:1px solid rgba(17,34,64,.6);color:var(--text)}
+tbody tr:hover{background:rgba(0,229,255,.02)}
+.val-g{color:var(--green)}.val-a{color:var(--amber)}.val-b{color:var(--accent)}.val-p{color:#b47fff}
+
+/* ── LOG ────────────────────────────────────────────────────────────── */
+#logBox{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:12px;height:160px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:11px;line-height:1.9}
+.ll{color:var(--muted)}.li{color:var(--accent)}.ls{color:var(--green)}.lw{color:var(--amber)}.le{color:var(--red)}
+
+/* ── PARETO ─────────────────────────────────────────────────────────── */
+.pareto-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.ps-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.ps-val{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--accent)}
+.ps-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-top:3px}
+
+@media(max-width:900px){
+  .grid2,.grid3,.grid4,.device-grid,.param-grid{grid-template-columns:1fr}
+  main{padding:16px}nav{padding:0 16px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <div class="icon">⚡</div>
+    <h1>EA-FL <span>Dashboard</span></h1>
+  </div>
+  <div class="nav-tab active" onclick="showPage('overview')">Overview</div>
+  <div class="nav-tab" onclick="showPage('devices')">Devices</div>
+  <div class="nav-tab" onclick="showPage('energy')">Energy</div>
+  <div class="nav-tab" onclick="showPage('privacy')">Privacy</div>
+  <div class="nav-tab" onclick="showPage('pareto')">NSGA-II</div>
+  <div class="status-chip"><div class="dot" id="dot"></div><span id="statusTxt">IDLE</span></div>
+</nav>
+
+<main>
+
+<!-- ═══════════════════════ OVERVIEW ═══════════════════════ -->
+<div id="page-overview" class="page active">
+
+  <!-- Config -->
+  <div class="card mb">
+    <div class="section-title">Training Configuration</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px">Federated Learning</div>
+        <div class="param-grid">
+          <div class="param"><label>Rounds</label><input type="number" id="num_rounds" value="15" min="1" max="100"></div>
+          <div class="param"><label>Clients/Round</label><input type="number" id="clients_per_round" value="4" min="1" max="6"></div>
+          <div class="param"><label>Local Epochs</label><input type="number" id="local_epochs" value="3" min="1" max="20"></div>
+          <div class="param"><label>Learning Rate</label><input type="number" id="learning_rate" value="0.01" step="0.001" min="0.0001"></div>
+          <div class="param"><label>DP Noise (base σ)</label><input type="number" id="noise_scale" value="1.0" step="0.1" min="0"></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px">NSGA-II Optimizer</div>
+        <div class="param-grid" style="grid-template-columns:1fr 1fr">
+          <div class="param"><label>Population</label><input type="number" id="pop_size" value="12" min="4" max="50"></div>
+          <div class="param"><label>Generations</label><input type="number" id="generations" value="8" min="2" max="50"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-p" id="btnTrain" onclick="startTraining()">▶ Start Training</button>
+    <button class="btn btn-s" id="btnNsga2" onclick="startNsga2()" disabled>◈ Run NSGA-II</button>
+  </div>
+
+  <!-- Progress -->
+  <div class="card progress-card mb" id="progressCard">
+    <div class="prog-row"><span class="prog-msg" id="progMsg">Initializing...</span><span class="prog-pct" id="progPct">0%</span></div>
+    <div class="bar-bg"><div class="bar-fill" id="barFill"></div></div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="grid4 mb" id="kpiRow">
+    <div class="card kpi"><div class="kpi-val c1" id="kAcc">—</div><div class="kpi-lbl">Global Accuracy</div></div>
+    <div class="card kpi"><div class="kpi-val c2" id="kLoss">—</div><div class="kpi-lbl">Global Loss</div></div>
+    <div class="card kpi"><div class="kpi-val c3" id="kEnergy">—</div><div class="kpi-lbl">Total Energy (mJ)</div><div class="kpi-sub" id="kEnergyRed"></div></div>
+    <div class="card kpi"><div class="kpi-val c4" id="kComp">—</div><div class="kpi-lbl">Compression %</div><div class="kpi-sub" id="kCompSub"></div></div>
+    <div class="card kpi"><div class="kpi-val c5" id="kDp">—</div><div class="kpi-lbl">DP Noise σ</div><div class="kpi-sub">Dynamic</div></div>
+    <div class="card kpi"><div class="kpi-val c6" id="kPart">—</div><div class="kpi-lbl">Participation Rate</div></div>
+    <div class="card kpi"><div class="kpi-val c2" id="kRounds">—</div><div class="kpi-lbl">Rounds Done</div></div>
+    <div class="card kpi"><div class="kpi-val c1" id="kClients">6</div><div class="kpi-lbl">Total Clients</div></div>
+  </div>
+
+  <!-- Charts row 1 -->
+  <div class="grid2 mb">
+    <div class="card"><div class="section-title">Accuracy per Round</div><div class="chart-wrap"><canvas id="cAcc" height="200"></canvas></div></div>
+    <div class="card"><div class="section-title">Energy per Round (mJ)</div><div class="chart-wrap"><canvas id="cEnergy" height="200"></canvas></div></div>
+  </div>
+
+  <!-- Charts row 2 -->
+  <div class="grid2 mb">
+    <div class="card"><div class="section-title">Communication Overhead (bytes)</div><div class="chart-wrap"><canvas id="cComm" height="180"></canvas></div></div>
+    <div class="card"><div class="section-title">DP Noise σ per Round (Dynamic)</div><div class="chart-wrap"><canvas id="cDp" height="180"></canvas></div></div>
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+    <div class="section-title">Activity Log</div>
+    <div id="logBox"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ DEVICES ═══════════════════════ -->
+<div id="page-devices" class="page">
+  <div class="section-title mb" style="margin-bottom:16px">Client Device Health Monitor</div>
+  <div class="device-grid" id="deviceGrid">
+    <div class="card" style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px">Run training to see device metrics</div>
+  </div>
+  <div class="card">
+    <div class="section-title">Client Participation Table</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Device</th><th>Accuracy</th><th>Energy(mJ)</th><th>Bytes Sent</th><th>Bytes Saved</th><th>Rounds</th><th>DP σ</th><th>Score</th></tr></thead>
+        <tbody id="clientTbl"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ ENERGY ═══════════════════════ -->
+<div id="page-energy" class="page">
+  <div class="section-title mb" style="margin-bottom:16px">Energy Monitoring</div>
+  <div class="grid3 mb">
+    <div class="card kpi"><div class="kpi-val c3" id="eTotal">—</div><div class="kpi-lbl">Total Energy (mJ)</div></div>
+    <div class="card kpi"><div class="kpi-val c1" id="eSaving">—</div><div class="kpi-lbl">Avg Energy/Round (mJ)</div></div>
+    <div class="card kpi"><div class="kpi-val c4" id="eComm">—</div><div class="kpi-lbl">Total Bytes Sent (KB)</div></div>
+  </div>
+  <div class="grid2 mb">
+    <div class="card"><div class="section-title">Energy per Round</div><canvas id="cEnergy2" height="220"></canvas></div>
+    <div class="card"><div class="section-title">Battery % per Client</div><canvas id="cBattery" height="220"></canvas></div>
+  </div>
+  <div class="card mb"><div class="section-title">Per-Client Energy Breakdown</div><canvas id="cClientEnergy" height="200"></canvas></div>
+</div>
+
+<!-- ═══════════════════════ PRIVACY ═══════════════════════ -->
+<div id="page-privacy" class="page">
+  <div class="section-title mb" style="margin-bottom:16px">Dynamic Differential Privacy</div>
+  <div class="grid3 mb">
+    <div class="card kpi"><div class="kpi-val c5" id="dpStart">—</div><div class="kpi-lbl">Initial σ (Round 0)</div></div>
+    <div class="card kpi"><div class="kpi-val c1" id="dpEnd">—</div><div class="kpi-lbl">Final σ (Last Round)</div></div>
+    <div class="card kpi"><div class="kpi-val c2" id="dpDrop">—</div><div class="kpi-lbl">Noise Reduction %</div></div>
+  </div>
+  <div class="card mb">
+    <div class="section-title">DP Noise σ Decay over Rounds</div>
+    <canvas id="cDpFull" height="220"></canvas>
+    <div style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.7">
+      <strong style="color:var(--text)">Dynamic DP Strategy:</strong>
+      Noise starts high (strong privacy) in early rounds and decreases progressively as the model converges.
+      Formula: σ = σ_base × (1 − round/total) + σ_min. This balances privacy vs accuracy automatically.
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card"><div class="section-title">Accuracy vs DP Noise</div><canvas id="cAccDp" height="200"></canvas></div>
+    <div class="card"><div class="section-title">Compression Savings per Round</div><canvas id="cCompRound" height="200"></canvas></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PARETO ═══════════════════════ -->
+<div id="page-pareto" class="page">
+  <div class="section-title mb" style="margin-bottom:16px">NSGA-II Multi-Objective Optimisation</div>
+  <div id="paretoEmpty" style="text-align:center;padding:60px;color:var(--muted)">
+    Run training first, then click "Run NSGA-II" to see Pareto-optimal client selections
+  </div>
+  <div id="paretoContent" style="display:none">
+    <div class="pareto-summary mb">
+      <div class="ps-card"><div class="ps-val" id="psN">—</div><div class="ps-lbl">Pareto Solutions</div></div>
+      <div class="ps-card"><div class="ps-val" id="psMaxAcc">—</div><div class="ps-lbl">Best Accuracy</div></div>
+      <div class="ps-card"><div class="ps-val" id="psMinE">—</div><div class="ps-lbl">Min Energy (mJ)</div></div>
+    </div>
+    <div class="grid2 mb">
+      <div class="card"><div class="section-title">Pareto Front: Energy vs Accuracy</div><canvas id="cPareto" height="280"></canvas></div>
+      <div class="card"><div class="section-title">Pareto Front: Communication vs Accuracy</div><canvas id="cParetoComm" height="280"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Pareto-Optimal Client Selections</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Selected Clients</th><th>Accuracy</th><th>Energy(mJ)</th><th>Comm(KB)</th><th>Trade-off</th></tr></thead>
+          <tbody id="paretoTbl"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ─── Page nav ──────────────────────────────────────────────────────────────
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ─── Chart engine ──────────────────────────────────────────────────────────
+function drawLine(id, labels, datasets, opts={}){
+  const cv=document.getElementById(id); if(!cv)return;
+  const ctx=cv.getContext('2d');
+  const W=cv.offsetWidth||500, H=cv.height||200;
+  cv.width=W;
+  const pd={t:20,r:20,b:36,l:56};
+  const cw=W-pd.l-pd.r, ch=H-pd.t-pd.b;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#04080f'; ctx.fillRect(0,0,W,H);
+  if(!labels.length)return;
+  const all=datasets.flatMap(d=>d.data);
+  let mn=Math.min(...all),mx=Math.max(...all);
+  if(mn===mx){mn-=.1;mx+=.1;}
+  const rng=mx-mn;
+  // grid
+  for(let i=0;i<=5;i++){
+    const y=pd.t+(i/5)*ch;
+    ctx.strokeStyle='#112240'; ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pd.l,y);ctx.lineTo(pd.l+cw,y);ctx.stroke();
+    ctx.fillStyle='#4a6080';ctx.font='10px Space Mono';ctx.textAlign='right';
+    ctx.fillText((mx-(i/5)*rng).toFixed(opts.dec??3),pd.l-5,y+3);
+  }
+  // x labels
+  const step=Math.max(1,Math.floor(labels.length/8));
+  labels.forEach((l,i)=>{
+    if(i%step===0){
+      const x=pd.l+(i/Math.max(labels.length-1,1))*cw;
+      ctx.fillStyle='#4a6080';ctx.font='10px Space Mono';ctx.textAlign='center';
+      ctx.fillText(l,x,H-4);
+    }
+  });
+  // lines
+  datasets.forEach(ds=>{
+    ctx.strokeStyle=ds.color; ctx.lineWidth=2;
+    ctx.beginPath();
+    ds.data.forEach((v,i)=>{
+      const x=pd.l+(i/Math.max(labels.length-1,1))*cw;
+      const y=pd.t+ch-((v-mn)/rng)*ch;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }); ctx.stroke();
+    ctx.fillStyle=ds.color;
+    ds.data.forEach((v,i)=>{
+      const x=pd.l+(i/Math.max(labels.length-1,1))*cw;
+      const y=pd.t+ch-((v-mn)/rng)*ch;
+      ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();
+    });
+  });
+}
+
+function drawBar(id, labels, values, color='#00e5ff', opts={}){
+  const cv=document.getElementById(id); if(!cv)return;
+  const ctx=cv.getContext('2d');
+  const W=cv.offsetWidth||500, H=cv.height||200;
+  cv.width=W;
+  const pd={t:20,r:20,b:36,l:56};
+  const cw=W-pd.l-pd.r, ch=H-pd.t-pd.b;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#04080f'; ctx.fillRect(0,0,W,H);
+  if(!values.length)return;
+  const mx=Math.max(...values)*1.1||1;
+  for(let i=0;i<=4;i++){
+    const y=pd.t+(i/4)*ch;
+    ctx.strokeStyle='#112240';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pd.l,y);ctx.lineTo(pd.l+cw,y);ctx.stroke();
+    ctx.fillStyle='#4a6080';ctx.font='10px Space Mono';ctx.textAlign='right';
+    ctx.fillText((mx-(i/4)*mx).toFixed(opts.dec??1),pd.l-5,y+3);
+  }
+  const bw=cw/values.length*.7, gap=cw/values.length;
+  values.forEach((v,i)=>{
+    const bh=(v/mx)*ch;
+    const x=pd.l+i*gap+(gap-bw)/2;
+    const y=pd.t+ch-bh;
+    const grad=ctx.createLinearGradient(x,y,x,y+bh);
+    grad.addColorStop(0,color); grad.addColorStop(1,color+'44');
+    ctx.fillStyle=grad;
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y,bw,bh,3):ctx.rect(x,y,bw,bh);
+    ctx.fill();
+    ctx.fillStyle='#4a6080';ctx.font='9px Space Mono';ctx.textAlign='center';
+    if(labels[i]) ctx.fillText(labels[i],x+bw/2,H-4);
+  });
+}
+
+function drawScatter(id, points, opts={}){
+  const cv=document.getElementById(id); if(!cv)return;
+  const ctx=cv.getContext('2d');
+  const W=cv.offsetWidth||500, H=cv.height||280;
+  cv.width=W;
+  const pd={t:20,r:20,b:46,l:60};
+  const cw=W-pd.l-pd.r, ch=H-pd.t-pd.b;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#04080f'; ctx.fillRect(0,0,W,H);
+  if(!points.length)return;
+  const xs=points.map(p=>p.x),ys=points.map(p=>p.y);
+  let x0=Math.min(...xs),x1=Math.max(...xs);
+  let y0=Math.min(...ys),y1=Math.max(...ys);
+  const xpad=(x1-x0)*.1||1, ypad=(y1-y0)*.1||.01;
+  x0-=xpad;x1+=xpad;y0-=ypad;y1+=ypad;
+  for(let i=0;i<=5;i++){
+    const y=pd.t+(i/5)*ch;
+    ctx.strokeStyle='#112240';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pd.l,y);ctx.lineTo(pd.l+cw,y);ctx.stroke();
+    ctx.fillStyle='#4a6080';ctx.font='10px Space Mono';ctx.textAlign='right';
+    ctx.fillText((y1-(i/5)*(y1-y0)).toFixed(3),pd.l-5,y+3);
+    const x=pd.l+(i/5)*cw;
+    ctx.beginPath();ctx.moveTo(x,pd.t);ctx.lineTo(x,pd.t+ch);ctx.stroke();
+    ctx.textAlign='center';
+    ctx.fillText((x0+(i/5)*(x1-x0)).toFixed(1),x,H-4);
+  }
+  ctx.fillStyle='#4a6080';ctx.font='11px Space Grotesk';ctx.textAlign='center';
+  ctx.fillText(opts.xlabel||'X',pd.l+cw/2,H-2);
+  ctx.save();ctx.translate(13,pd.t+ch/2);ctx.rotate(-Math.PI/2);
+  ctx.fillText(opts.ylabel||'Y',0,0);ctx.restore();
+  // Pareto line
+  const srt=[...points].sort((a,b)=>a.x-b.x);
+  ctx.strokeStyle='rgba(0,229,255,.2)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  srt.forEach((p,i)=>{
+    const px=pd.l+((p.x-x0)/(x1-x0))*cw;
+    const py=pd.t+ch-((p.y-y0)/(y1-y0))*ch;
+    i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+  }); ctx.stroke();ctx.setLineDash([]);
+  // Points
+  points.forEach((p,i)=>{
+    const px=pd.l+((p.x-x0)/(x1-x0))*cw;
+    const py=pd.t+ch-((p.y-y0)/(y1-y0))*ch;
+    const g=ctx.createRadialGradient(px,py,0,px,py,12);
+    g.addColorStop(0,'#00e5ff');g.addColorStop(1,'rgba(0,229,255,0)');
+    ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fillStyle='#00e5ff';ctx.fill();
+    ctx.fillStyle='#04080f';ctx.font='bold 8px Space Mono';ctx.textAlign='center';
+    ctx.fillText(i+1,px,py+3);
+  });
+}
+
+// ─── State ────────────────────────────────────────────────────────────────
+let pollTimer=null, trainingDone=false;
+let accData=[], energyData=[], commData=[], dpData=[];
+
+// ─── Log ──────────────────────────────────────────────────────────────────
+function log(msg,type='ll'){
+  const b=document.getElementById('logBox');
+  const d=document.createElement('div'); d.className=type;
+  d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;
+  b.appendChild(d); b.scrollTop=b.scrollHeight;
+}
+
+// ─── Status ──────────────────────────────────────────────────────────────
+function setStatus(state,txt){
+  const dot=document.getElementById('dot');
+  dot.className='dot';
+  if(state==='on')dot.classList.add('on');
+  if(state==='err')dot.classList.add('err');
+  document.getElementById('statusTxt').textContent=txt.toUpperCase();
+}
+
+// ─── Training ─────────────────────────────────────────────────────────────
+async function startTraining(){
+  const cfg={
+    num_rounds:        +document.getElementById('num_rounds').value,
+    clients_per_round: +document.getElementById('clients_per_round').value,
+    local_epochs:      +document.getElementById('local_epochs').value,
+    learning_rate:     +document.getElementById('learning_rate').value,
+    noise_scale:       +document.getElementById('noise_scale').value,
+  };
+  accData=[];energyData=[];commData=[];dpData=[];trainingDone=false;
+  document.getElementById('btnTrain').disabled=true;
+  document.getElementById('btnNsga2').disabled=true;
+  document.getElementById('progressCard').classList.add('show');
+  document.getElementById('paretoContent').style.display='none';
+  document.getElementById('paretoEmpty').style.display='block';
+  setStatus('on','Training');
+  log('Starting FL training with adaptive client selection...','li');
+  try{
+    const r=await fetch('/api/train',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
+    if(!r.ok){const e=await r.json();throw new Error(e.error);}
+    log('Training started in background','ls');
+    startPoll('training');
+  }catch(e){log('Error: '+e.message,'le');setStatus('err','Error');document.getElementById('btnTrain').disabled=false;}
+}
+
+async function startNsga2(){
+  const cfg={pop_size:+document.getElementById('pop_size').value, generations:+document.getElementById('generations').value};
+  document.getElementById('btnNsga2').disabled=true;
+  document.getElementById('progressCard').classList.add('show');
+  setStatus('on','Optimizing');
+  log('Running NSGA-II multi-objective optimisation...','li');
+  try{
+    const r=await fetch('/api/nsga2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
+    if(!r.ok){const e=await r.json();throw new Error(e.error);}
+    startPoll('nsga2');
+  }catch(e){log('Error: '+e.message,'le');setStatus('err','Error');document.getElementById('btnNsga2').disabled=false;}
+}
+
+// ─── Polling ──────────────────────────────────────────────────────────────
+function startPoll(mode){if(pollTimer)clearInterval(pollTimer);pollTimer=setInterval(()=>poll(mode),1000);}
+
+async function poll(mode){
+  try{
+    const s=await(await fetch('/api/status')).json();
+    const {state,progress,message}=s;
+    document.getElementById('progMsg').textContent=message||'...';
+    document.getElementById('progPct').textContent=(progress||0)+'%';
+    document.getElementById('barFill').style.width=(progress||0)+'%';
+
+    if(state==='training'&&s.current_round){
+      const r=s.current_round;
+      accData.push(r.global_accuracy);
+      energyData.push(r.total_energy_mj);
+      commData.push(r.bytes_transmitted||0);
+      dpData.push(r.avg_dp_sigma||0);
+      const lbls=accData.map((_,i)=>String(i+1));
+      drawLine('cAcc',lbls,[{data:accData,color:'#00e676'}],{dec:3});
+      drawLine('cEnergy',lbls,[{data:energyData,color:'#ffab00'}],{dec:2});
+      drawLine('cComm',lbls,[{data:commData,color:'#00e5ff'}],{dec:0});
+      drawLine('cDp',lbls,[{data:dpData,color:'#ff80ab'}],{dec:3});
+      document.getElementById('kAcc').textContent=r.global_accuracy.toFixed(4);
+      document.getElementById('kLoss').textContent=r.global_loss.toFixed(4);
+      document.getElementById('kDp').textContent=(r.avg_dp_sigma||0).toFixed(3);
+      document.getElementById('kPart').textContent=(r.participation_rate||0)+'%';
+      document.getElementById('kComp').textContent=(r.compression_ratio||0)+'%';
+    }
+
+    if(state==='complete'){
+      clearInterval(pollTimer);
+      setStatus('','Complete');
+      log(message,'ls');
+      document.getElementById('progressCard').classList.remove('show');
+      if(mode==='training'||s.training_complete){
+        trainingDone=true;
+        document.getElementById('btnTrain').disabled=false;
+        document.getElementById('btnNsga2').disabled=false;
+        document.getElementById('kRounds').textContent=accData.length;
+        await loadResults();await loadClients();
+      }
+      if(mode==='nsga2'||s.nsga2_complete){
+        document.getElementById('btnNsga2').disabled=false;
+        await loadPareto();
+      }
+    }
+    if(state==='error'){
+      clearInterval(pollTimer);setStatus('err','Error');
+      log('Error: '+message,'le');
+      document.getElementById('btnTrain').disabled=false;
+      document.getElementById('btnNsga2').disabled=!trainingDone;
+    }
+  }catch(e){log('Poll error: '+e.message,'lw');}
+}
+
+// ─── Load Results ─────────────────────────────────────────────────────────
+async function loadResults(){
+  const r=await fetch('/api/results');if(!r.ok)return;
+  const d=await r.json();
+  const fm=d.final_metrics||{};
+  document.getElementById('kEnergy').textContent=(fm.total_energy_mj||0).toFixed(1);
+  document.getElementById('kComp').textContent=(fm.overall_compression||0)+'%';
+  document.getElementById('kCompSub').textContent=`${((fm.total_bytes_saved||0)/1000).toFixed(1)}KB saved`;
+  document.getElementById('kRounds').textContent=fm.num_rounds||'—';
+  document.getElementById('eTotal').textContent=(fm.total_energy_mj||0).toFixed(1);
+  document.getElementById('eComm').textContent=((fm.total_bytes_sent||0)/1000).toFixed(1);
+  if(fm.num_rounds) document.getElementById('eSaving').textContent=((fm.total_energy_mj||0)/fm.num_rounds).toFixed(2);
+
+  const rounds=d.round_results||[];
+  const lbls=rounds.map(r=>String(r.round+1));
+  accData=rounds.map(r=>r.global_accuracy);
+  energyData=rounds.map(r=>r.total_energy_mj);
+  commData=rounds.map(r=>r.bytes_transmitted||0);
+  dpData=rounds.map(r=>r.avg_dp_sigma||0);
+  drawLine('cAcc',lbls,[{data:accData,color:'#00e676'}],{dec:3});
+  drawLine('cEnergy',lbls,[{data:energyData,color:'#ffab00'}],{dec:2});
+  drawLine('cComm',lbls,[{data:commData,color:'#00e5ff'}],{dec:0});
+  drawLine('cDp',lbls,[{data:dpData,color:'#ff80ab'}],{dec:3});
+  drawLine('cEnergy2',lbls,[{data:energyData,color:'#ffab00'}],{dec:2});
+  drawLine('cDpFull',lbls,[{data:dpData,color:'#ff80ab'}],{dec:4});
+  drawLine('cAccDp',lbls,[{data:accData,color:'#00e676'},{data:dpData.map(v=>v),color:'#ff80ab'}],{dec:3});
+  drawBar('cCompRound',lbls,rounds.map(r=>r.compression_ratio||0),'#b47fff',{dec:1});
+
+  // privacy stats
+  if(dpData.length){
+    document.getElementById('dpStart').textContent=dpData[0].toFixed(4);
+    document.getElementById('dpEnd').textContent=dpData[dpData.length-1].toFixed(4);
+    const drop=((dpData[0]-dpData[dpData.length-1])/dpData[0]*100);
+    document.getElementById('dpDrop').textContent=drop.toFixed(1)+'%';
+  }
+}
+
+async function loadClients(){
+  const r=await fetch('/api/clients');if(!r.ok)return;
+  const clients=await r.json();
+  const badgeMap={smartphone:'b-sm',smartwatch:'b-sw',tablet:'b-tb',iot_sensor:'b-io',laptop:'b-lp',edge_device:'b-ed'};
+
+  // Device cards
+  const grid=document.getElementById('deviceGrid');
+  grid.innerHTML=clients.map(c=>{
+    const bc=badgeMap[c.device_type]||'b-sm';
+    const batColor=c.battery_pct>50?'#00e676':c.battery_pct>20?'#ffab00':'#ff5252';
+    const cpuColor=c.cpu_load_pct<50?'#00e676':c.cpu_load_pct<80?'#ffab00':'#ff5252';
+    const tmpColor=c.temperature_c<45?'#00e676':c.temperature_c<55?'#ffab00':'#ff5252';
+    return `<div class="device-card">
+      <div class="device-header">
+        <div><div class="device-name">${c.device_type.replace('_',' ')}</div>
+          <div class="device-id">Client #${c.client_id} | ${c.num_samples} samples</div></div>
+        <span class="badge ${bc}">${c.device_type.substring(0,3).toUpperCase()}</span>
+      </div>
+      <div class="meter-row">
+        <div class="meter-label"><span>Battery</span><span>${c.battery_pct}%</span></div>
+        <div class="meter-bg"><div class="meter-fill" style="width:${c.battery_pct}%;background:${batColor}"></div></div>
+      </div>
+      <div class="meter-row">
+        <div class="meter-label"><span>CPU Load</span><span>${c.cpu_load_pct}%</span></div>
+        <div class="meter-bg"><div class="meter-fill" style="width:${c.cpu_load_pct}%;background:${cpuColor}"></div></div>
+      </div>
+      <div class="meter-row">
+        <div class="meter-label"><span>RAM Used</span><span>${c.ram_used_pct}%</span></div>
+        <div class="meter-bg"><div class="meter-fill" style="width:${c.ram_used_pct}%;background:#00e5ff"></div></div>
+      </div>
+      <div class="meter-row">
+        <div class="meter-label"><span>Temperature</span><span>${c.temperature_c}°C</span></div>
+        <div class="meter-bg"><div class="meter-fill" style="width:${Math.min(c.temperature_c/80*100,100)}%;background:${tmpColor}"></div></div>
+      </div>
+      <div class="score-row">
+        <div><div class="score-lbl">Selection Score</div></div>
+        <div class="score-val">${(c.selection_score*100).toFixed(1)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Table
+  document.getElementById('clientTbl').innerHTML=clients.map(c=>`
+    <tr>
+      <td class="val-b">${c.client_id}</td>
+      <td><span class="badge ${badgeMap[c.device_type]||'b-sm'}">${c.device_type}</span></td>
+      <td class="val-g">${(c.local_accuracy*100).toFixed(1)}%</td>
+      <td class="val-a">${c.energy_consumed_mj.toFixed(2)}</td>
+      <td>${(c.bytes_sent/1000).toFixed(2)}KB</td>
+      <td class="val-g">${(c.bytes_saved/1000).toFixed(2)}KB</td>
+      <td class="val-p">${c.rounds_participated}</td>
+      <td>${c.dp_sigma.toFixed(4)}</td>
+      <td class="val-g">${(c.selection_score*100).toFixed(1)}%</td>
+    </tr>`).join('');
+
+  // Battery bar chart
+  drawBar('cBattery',clients.map(c=>`C${c.client_id}`),clients.map(c=>c.battery_pct),'#00e676',{dec:0});
+  drawBar('cClientEnergy',clients.map(c=>`C${c.client_id}`),clients.map(c=>c.total_energy_mj),'#ffab00',{dec:2});
+}
+
+async function loadPareto(){
+  const r=await fetch('/api/pareto');if(!r.ok)return;
+  const d=await r.json();
+  const front=d.pareto_front||[],sum=d.summary||{};
+  log(`NSGA-II complete: ${sum.num_solutions} Pareto solutions found`,'ls');
+  document.getElementById('paretoEmpty').style.display='none';
+  document.getElementById('paretoContent').style.display='block';
+  document.getElementById('psN').textContent=sum.num_solutions||0;
+  document.getElementById('psMaxAcc').textContent=((sum.max_accuracy||0)*100).toFixed(2)+'%';
+  document.getElementById('psMinE').textContent=(sum.min_energy_mj||0).toFixed(2);
+  drawScatter('cPareto',front.map(s=>({x:s.energy_mj,y:s.accuracy})),{xlabel:'Energy (mJ)',ylabel:'Accuracy'});
+  drawScatter('cParetoComm',front.map(s=>({x:s.comm_kb,y:s.accuracy})),{xlabel:'Comm (KB)',ylabel:'Accuracy'});
+  document.getElementById('paretoTbl').innerHTML=front.map((s,i)=>{
+    const tag=i===0?'<span class="badge b-tb">Best Acc</span>':
+              i===front.length-1?'<span class="badge b-io">Min Energy</span>':
+              '<span class="badge b-sm">Balanced</span>';
+    return `<tr>
+      <td class="val-b">${i+1}</td>
+      <td>${s.client_ids.map(id=>`<span class="badge b-sm">C${id}</span>`).join(' ')}</td>
+      <td class="val-g">${(s.accuracy*100).toFixed(2)}%</td>
+      <td class="val-a">${s.energy_mj.toFixed(2)}</td>
+      <td class="val-b">${s.comm_kb.toFixed(2)}</td>
+      <td>${tag}</td></tr>`;
+  }).join('');
+}
+
+// init
+log('EA-FL Dashboard ready. Configure parameters and click Start Training.','li');
+log('Features: Adaptive Selection · Dynamic DP · Model Compression · NSGA-II','ll');
+</script>
+</body>
+</html>
